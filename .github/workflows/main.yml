@@ -9,6 +9,9 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      # ---------------------------
+      # System Info
+      # ---------------------------
       - name: Show System Info
         run: |
           echo "CPU:"
@@ -24,12 +27,12 @@ jobs:
       - name: Install Base Packages
         run: |
           sudo apt update
-          sudo apt install -y curl gnupg2 ca-certificates lsb-release software-properties-common
+          sudo apt install -y curl wget gnupg2 ca-certificates lsb-release software-properties-common apt-transport-https
 
       # ---------------------------
-      # Install Node.js (LTS)
+      # Install Node.js 20 LTS
       # ---------------------------
-      - name: Install Node.js 20
+      - name: Install Node.js
         run: |
           curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
           sudo apt install -y nodejs
@@ -42,18 +45,20 @@ jobs:
       - name: Install Nginx
         run: |
           sudo apt install -y nginx
-          sudo systemctl start nginx
-          sudo systemctl status nginx --no-pager
+          sudo nginx
+          curl -I http://localhost
 
       # ---------------------------
-      # Install Webmin
+      # Install Webmin (Non-Interactive Fix)
       # ---------------------------
       - name: Install Webmin
         run: |
-          curl -o setup-repos.sh https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
-          sudo sh setup-repos.sh
+          wget -qO- https://download.webmin.com/jcameron-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/webmin.gpg
+          echo "deb [signed-by=/usr/share/keyrings/webmin.gpg] http://download.webmin.com/download/repository sarge contrib" | sudo tee /etc/apt/sources.list.d/webmin.list
+          sudo apt update
           sudo apt install -y webmin
-          sudo systemctl start webmin
+          sudo /etc/webmin/start
+          sudo ss -tulnp | grep 10000 || true
 
       # ---------------------------
       # Install Tailscale
@@ -82,19 +87,22 @@ jobs:
           docker run -d \
             --name ollama \
             -p 11434:11434 \
+            -e OLLAMA_NUM_PARALLEL=2 \
+            -e OLLAMA_KEEP_ALIVE=10m \
             --restart unless-stopped \
             ollama/ollama:latest
 
       - name: Wait for Ollama
         run: |
-          for i in {1..30}; do
+          for i in {1..40}; do
             if curl -s http://localhost:11434/api/tags > /dev/null; then
+              echo "Ollama ready"
               break
             fi
-            sleep 2
+            sleep 3
           done
 
-      - name: Pull DeepSeek
+      - name: Pull DeepSeek Model
         run: docker exec ollama ollama pull deepseek-coder:6.7b
 
       # ---------------------------
@@ -118,5 +126,8 @@ jobs:
           node -v
           echo "========================================"
 
+      # ---------------------------
+      # Keep Runner Alive
+      # ---------------------------
       - name: Keep Runner Alive
         run: sleep 6h
