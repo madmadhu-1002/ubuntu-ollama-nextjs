@@ -65,10 +65,23 @@ jobs:
       # ---------------------------
       # Install Tailscale
       # ---------------------------
-      - name: Install Tailscale (Manual Stable)
+      - name: Install Tailscale (CI Safe)
         run: |
-          sudo apt update
-          sudo apt install -y tailscale
+          # Wait for any running apt process to finish
+          while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+            echo "Waiting for apt lock..."
+            sleep 3
+          done
+      
+          while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+            echo "Waiting for dpkg lock..."
+            sleep 3
+          done
+      
+          sudo dpkg --configure -a || true
+      
+          curl -fsSL https://tailscale.com/install.sh | sh
+
 
 
       - name: Start Tailscale
