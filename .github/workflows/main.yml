@@ -65,8 +65,11 @@ jobs:
       # ---------------------------
       # Install Tailscale
       # ---------------------------
-      - name: Install Tailscale
-        run: curl -fsSL https://tailscale.com/install.sh | sh
+      - name: Install Tailscale (Manual Stable)
+        run: |
+          sudo apt update
+          sudo apt install -y tailscale
+
 
       - name: Start Tailscale
         run: |
