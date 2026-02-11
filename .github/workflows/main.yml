@@ -51,14 +51,16 @@ jobs:
       # ---------------------------
       # Install Webmin (Non-Interactive Fix)
       # ---------------------------
-      - name: Install Webmin
+      - name: Install Webmin (Direct .deb)
         run: |
-          wget -qO- https://download.webmin.com/jcameron-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/webmin.gpg
-          echo "deb [signed-by=/usr/share/keyrings/webmin.gpg] http://download.webmin.com/download/repository sarge contrib" | sudo tee /etc/apt/sources.list.d/webmin.list
           sudo apt update
-          sudo apt install -y webmin
-          sudo /etc/webmin/start
-          sudo ss -tulnp | grep 10000 || true
+          sudo apt install -y perl libnet-ssleay-perl openssl \
+            libauthen-pam-perl libpam-runtime libio-pty-perl \
+            apt-show-versions python3
+      
+          wget https://www.webmin.com/download/deb/webmin-current.deb
+          sudo dpkg -i webmin-current.deb || sudo apt -f install -y
+
 
       # ---------------------------
       # Install Tailscale
