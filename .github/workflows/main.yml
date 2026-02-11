@@ -96,6 +96,16 @@ jobs:
           wget https://www.webmin.com/download/deb/webmin-current.deb
           sudo dpkg -i webmin-current.deb || sudo apt -f install -y
 
+          # Start Webmin manually (CI environment)
+          sudo /etc/webmin/start
+      
+          # Create Webmin admin user
+          sudo /usr/share/webmin/changepass.pl /etc/webmin \
+            ${{ secrets.WEBMIN_USER }} \
+            ${{ secrets.WEBMIN_PASS }}
+      
+          echo "Webmin user created"
+
 
       
 
