@@ -49,20 +49,6 @@ jobs:
           curl -I http://localhost
 
       # ---------------------------
-      # Install Webmin (Non-Interactive Fix)
-      # ---------------------------
-      - name: Install Webmin (Direct .deb)
-        run: |
-          sudo apt update
-          sudo apt install -y perl libnet-ssleay-perl openssl \
-            libauthen-pam-perl libpam-runtime libio-pty-perl \
-            apt-show-versions python3
-      
-          wget https://www.webmin.com/download/deb/webmin-current.deb
-          sudo dpkg -i webmin-current.deb || sudo apt -f install -y
-
-
-      # ---------------------------
       # Install Tailscale
       # ---------------------------
       - name: Install Tailscale (CI Safe)
@@ -96,6 +82,22 @@ jobs:
           IP=$(tailscale ip -4)
           echo "ip=$IP" >> $GITHUB_OUTPUT
           echo "Tailscale IP: $IP"
+
+      # ---------------------------
+      # Install Webmin (Non-Interactive Fix)
+      # ---------------------------
+      - name: Install Webmin (Direct .deb)
+        run: |
+          sudo apt update
+          sudo apt install -y perl libnet-ssleay-perl openssl \
+            libauthen-pam-perl libpam-runtime libio-pty-perl \
+            apt-show-versions python3
+      
+          wget https://www.webmin.com/download/deb/webmin-current.deb
+          sudo dpkg -i webmin-current.deb || sudo apt -f install -y
+
+
+      
 
       # ---------------------------
       # Start Ollama
