@@ -1,0 +1,122 @@
+name: Ollama + Web Stack via Tailscale
+
+on:
+  workflow_dispatch:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Show System Info
+        run: |
+          echo "CPU:"
+          lscpu | grep "Model name"
+          echo "RAM:"
+          free -h
+          echo "Disk:"
+          df -h
+
+      # ---------------------------
+      # Install Base Packages
+      # ---------------------------
+      - name: Install Base Packages
+        run: |
+          sudo apt update
+          sudo apt install -y curl gnupg2 ca-certificates lsb-release software-properties-common
+
+      # ---------------------------
+      # Install Node.js (LTS)
+      # ---------------------------
+      - name: Install Node.js 20
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt install -y nodejs
+          node -v
+          npm -v
+
+      # ---------------------------
+      # Install Nginx
+      # ---------------------------
+      - name: Install Nginx
+        run: |
+          sudo apt install -y nginx
+          sudo systemctl start nginx
+          sudo systemctl status nginx --no-pager
+
+      # ---------------------------
+      # Install Webmin
+      # ---------------------------
+      - name: Install Webmin
+        run: |
+          curl -o setup-repos.sh https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
+          sudo sh setup-repos.sh
+          sudo apt install -y webmin
+          sudo systemctl start webmin
+
+      # ---------------------------
+      # Install Tailscale
+      # ---------------------------
+      - name: Install Tailscale
+        run: curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Start Tailscale
+        run: |
+          sudo tailscale up \
+            --authkey=${{ secrets.TAILSCALE_AUTHKEY }} \
+            --accept-dns=true
+
+      - name: Get Tailscale IP
+        id: tsip
+        run: |
+          IP=$(tailscale ip -4)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "Tailscale IP: $IP"
+
+      # ---------------------------
+      # Start Ollama
+      # ---------------------------
+      - name: Start Ollama Container
+        run: |
+          docker run -d \
+            --name ollama \
+            -p 11434:11434 \
+            --restart unless-stopped \
+            ollama/ollama:latest
+
+      - name: Wait for Ollama
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:11434/api/tags > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Pull DeepSeek
+        run: docker exec ollama ollama pull deepseek-coder:6.7b
+
+      # ---------------------------
+      # Show Access Info
+      # ---------------------------
+      - name: Show Access Info
+        run: |
+          echo "========================================"
+          echo "Tailscale IP: ${{ steps.tsip.outputs.ip }}"
+          echo ""
+          echo "Ollama API:"
+          echo "http://${{ steps.tsip.outputs.ip }}:11434"
+          echo ""
+          echo "Nginx:"
+          echo "http://${{ steps.tsip.outputs.ip }}"
+          echo ""
+          echo "Webmin:"
+          echo "https://${{ steps.tsip.outputs.ip }}:10000"
+          echo ""
+          echo "Node Version:"
+          node -v
+          echo "========================================"
+
+      - name: Keep Runner Alive
+        run: sleep 6h
