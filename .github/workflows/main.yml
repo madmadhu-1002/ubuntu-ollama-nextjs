@@ -149,23 +149,35 @@ jobs:
           pnpm ui:build
 
       # ---------------------------
-      # Start OpenClaw Gateway
+      # Start OpenClaw Gateway (Serve Mode)
       # ---------------------------
-      - name: Start OpenClaw
+      - name: Start OpenClaw Gateway
         run: |
           cd /opt/openclaw
       
-          # Ensure UI is built
+          # Build Control UI
           pnpm ui:build
       
-          # Start gateway properly
-          pm2 start "pnpm exec openclaw gateway --bind 0.0.0.0" \
+          # Start gateway bound to localhost only
+          pm2 start "pnpm exec openclaw gateway --bind 127.0.0.1" \
             --name openclaw \
             --interpreter bash
       
           pm2 save
           sleep 5
           pm2 status
+
+      # ---------------------------
+      # Enable Tailscale Serve (HTTPS Proxy)
+      # ---------------------------
+      - name: Enable Tailscale Serve
+        run: |
+          # Serve HTTPS on 443 → proxy to local 18789
+          sudo tailscale serve https / http://127.0.0.1:18789
+      
+          echo "Serve status:"
+          tailscale serve status
+
 
       # ---------------------------
       # Show Access Info
