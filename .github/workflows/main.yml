@@ -31,13 +31,21 @@ jobs:
             lsb-release software-properties-common apt-transport-https
 
       # ---------------------------
-      # Install Node.js 22 (Required by OpenClaw)
+      # Setup Node.js 22 (Required by OpenClaw)
       # ---------------------------
-      - name: Install Node.js 22
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Verify Node Version
         run: |
-          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-          sudo apt install -y nodejs
+          echo "Node location:"
+          which node
+          echo "Node version:"
           node -v
+          echo "NPM version:"
           npm -v
 
       # ---------------------------
