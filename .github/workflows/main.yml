@@ -86,11 +86,9 @@ jobs:
           sudo apt install -y perl libnet-ssleay-perl openssl \
             libauthen-pam-perl libpam-runtime libio-pty-perl \
             apt-show-versions python3
-
           wget https://www.webmin.com/download/deb/webmin-current.deb
           sudo dpkg -i webmin-current.deb || sudo apt -f install -y
           sudo /etc/webmin/start
-
           sudo /usr/share/webmin/changepass.pl /etc/webmin \
             ${{ secrets.WEBMIN_USER }} \
             ${{ secrets.WEBMIN_PASS }}
@@ -133,20 +131,19 @@ jobs:
           npm install
 
       # ---------------------------
-      # Configure OpenClaw
+      # Configure OpenClaw (Safe)
       # ---------------------------
       - name: Configure OpenClaw
         run: |
           cd /opt/openclaw
-          cat <<EOF > .env
-          MODEL_PROVIDER=ollama
-          OLLAMA_BASE_URL=http://localhost:11434
-          OLLAMA_MODEL=qwen2.5-coder:7b
-          
-          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-          
-          ALLOW_SHELL=true
-          EOF
+          echo "MODEL_PROVIDER=ollama" > .env
+          echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
+          echo "OLLAMA_MODEL=qwen2.5-coder:7b" >> .env
+          echo "" >> .env
+          echo "CHANNELS=telegram" >> .env
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+          echo "" >> .env
+          echo "ALLOW_SHELL=true" >> .env
 
       # ---------------------------
       # Start OpenClaw
@@ -155,7 +152,20 @@ jobs:
         run: |
           cd /opt/openclaw
           pm2 start npm --name openclaw -- start
+          pm2 save
+          sleep 5
           pm2 status
+
+      # ---------------------------
+      # Show OpenClaw Logs
+      # ---------------------------
+      - name: Show OpenClaw Logs
+        run: |
+          echo "===== PM2 STATUS ====="
+          pm2 status
+          echo ""
+          echo "===== OpenClaw Logs ====="
+          pm2 logs openclaw --lines 100 --nostream || true
 
       # ---------------------------
       # Deploy Next.js App
