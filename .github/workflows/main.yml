@@ -48,15 +48,7 @@ jobs:
           sudo npm install -g pm2
           pm2 -v
 
-      # ---------------------------
-      # Install Docker (Required)
-      # ---------------------------
-      - name: Install Docker
-        run: |
-          sudo apt install -y docker.io
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          docker --version
+      
 
       # ---------------------------
       # Install Nginx
