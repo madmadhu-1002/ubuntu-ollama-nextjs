@@ -30,25 +30,29 @@ jobs:
           sudo apt install -y curl wget git gnupg2 ca-certificates \
             lsb-release software-properties-common apt-transport-https
 
+            # ---------------------------
+      # Setup Node.js 22 (Correct Way)
       # ---------------------------
-      # Install Node.js 22
-      # ---------------------------
-      - name: Install Node.js 22
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-          sudo apt install -y nodejs
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
+      - name: Verify Node Version
+        run: |
           echo "Node path:"
           which node
-          echo "Node version:"
-          node -v
 
-          if ! node -v | grep -q "^v22\."; then
-            echo "ERROR: Node 22 not active in PATH."
+          NODE_VERSION=$(node -v)
+          echo "Node version: $NODE_VERSION"
+
+          if ! echo "$NODE_VERSION" | grep -q "^v22\."; then
+            echo "ERROR: Node 22 is not active."
             exit 1
           fi
 
-          echo "Node 22 successfully installed."
+          echo "Node 22 successfully installed and active."
+
 
       # ---------------------------
       # Install pnpm (REQUIRED)
