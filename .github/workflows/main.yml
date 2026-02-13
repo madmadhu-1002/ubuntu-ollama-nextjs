@@ -49,6 +49,16 @@ jobs:
           pm2 -v
 
       # ---------------------------
+      # Install Docker (Required)
+      # ---------------------------
+      - name: Install Docker
+        run: |
+          sudo apt install -y docker.io
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          docker --version
+
+      # ---------------------------
       # Install Nginx
       # ---------------------------
       - name: Install Nginx
@@ -77,7 +87,7 @@ jobs:
           echo "Tailscale IP: $IP"
 
       # ---------------------------
-      # Install Webmin (Direct .deb)
+      # Install Webmin
       # ---------------------------
       - name: Install Webmin
         run: |
@@ -87,16 +97,11 @@ jobs:
 
           wget https://www.webmin.com/download/deb/webmin-current.deb
           sudo dpkg -i webmin-current.deb || sudo apt -f install -y
-
-          # Start Webmin manually
           sudo /etc/webmin/start
 
-          # Create Webmin admin user
           sudo /usr/share/webmin/changepass.pl /etc/webmin \
             ${{ secrets.WEBMIN_USER }} \
             ${{ secrets.WEBMIN_PASS }}
-
-          echo "Webmin user created"
 
       # ---------------------------
       # Start Ollama Container
@@ -106,7 +111,7 @@ jobs:
           docker run -d \
             --name ollama \
             -p 11434:11434 \
-            -e OLLAMA_NUM_PARALLEL=2 \
+            -e OLLAMA_NUM_PARALLEL=1 \
             -e OLLAMA_KEEP_ALIVE=10m \
             --restart unless-stopped \
             ollama/ollama:latest
@@ -125,7 +130,43 @@ jobs:
         run: docker exec ollama ollama pull qwen2.5-coder:7b
 
       # ---------------------------
-      # Clone Your Next.js Repo
+      # Install OpenClaw
+      # ---------------------------
+      - name: Install OpenClaw
+        run: |
+          cd /opt
+          sudo git clone https://github.com/openclaw/openclaw.git
+          sudo chown -R $USER:$USER openclaw
+          cd openclaw
+          npm install
+
+      # ---------------------------
+      # Configure OpenClaw
+      # ---------------------------
+      - name: Configure OpenClaw
+        run: |
+          cd /opt/openclaw
+          cat <<EOF > .env
+MODEL_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5-coder:7b
+
+TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+ALLOW_SHELL=true
+EOF
+
+      # ---------------------------
+      # Start OpenClaw
+      # ---------------------------
+      - name: Start OpenClaw
+        run: |
+          cd /opt/openclaw
+          pm2 start npm --name openclaw -- start
+          pm2 status
+
+      # ---------------------------
+      # Deploy Next.js App
       # ---------------------------
       - name: Deploy Next.js App
         run: |
@@ -163,6 +204,8 @@ jobs:
           echo "Webmin:"
           echo "https://${{ steps.tsip.outputs.ip }}:10000"
           echo ""
+          echo "OpenClaw: Running via PM2"
+          echo "Telegram Bot: Connected"
           echo "Model: qwen2.5-coder:7b"
           echo "========================================"
 
