@@ -154,7 +154,15 @@ jobs:
       - name: Start OpenClaw
         run: |
           cd /opt/openclaw
-          pm2 start "openclaw gateway --bind 0.0.0.0" --name openclaw
+      
+          # Ensure UI is built
+          pnpm ui:build
+      
+          # Start gateway properly
+          pm2 start "pnpm exec openclaw gateway --bind 0.0.0.0" \
+            --name openclaw \
+            --interpreter bash
+      
           pm2 save
           sleep 5
           pm2 status
