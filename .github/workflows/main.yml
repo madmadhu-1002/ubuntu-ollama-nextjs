@@ -41,6 +41,14 @@ jobs:
           npm -v
 
       # ---------------------------
+      # Install pnpm (REQUIRED)
+      # ---------------------------
+      - name: Install pnpm
+        run: |
+          sudo npm install -g pnpm
+          pnpm -v
+
+      # ---------------------------
       # Install PM2
       # ---------------------------
       - name: Install PM2
@@ -120,7 +128,7 @@ jobs:
         run: docker exec ollama ollama pull qwen2.5-coder:7b
 
       # ---------------------------
-      # Install OpenClaw
+      # Install OpenClaw (USE PNPM)
       # ---------------------------
       - name: Install OpenClaw
         run: |
@@ -128,10 +136,10 @@ jobs:
           sudo git clone https://github.com/openclaw/openclaw.git
           sudo chown -R $USER:$USER openclaw
           cd openclaw
-          npm install
+          pnpm install
 
       # ---------------------------
-      # Configure OpenClaw (Safe)
+      # Configure OpenClaw
       # ---------------------------
       - name: Configure OpenClaw
         run: |
@@ -151,7 +159,7 @@ jobs:
       - name: Start OpenClaw
         run: |
           cd /opt/openclaw
-          pm2 start npm --name openclaw -- start
+          pm2 start pnpm --name openclaw -- start
           pm2 save
           sleep 5
           pm2 status
@@ -161,10 +169,6 @@ jobs:
       # ---------------------------
       - name: Show OpenClaw Logs
         run: |
-          echo "===== PM2 STATUS ====="
-          pm2 status
-          echo ""
-          echo "===== OpenClaw Logs ====="
           pm2 logs openclaw --lines 100 --nostream || true
 
       # ---------------------------
@@ -188,28 +192,6 @@ jobs:
           cd /var/www/ollama-gpt
           pm2 start npm --name ollama-gpt -- start
           pm2 status
-
-      # ---------------------------
-      # Show Access Info
-      # ---------------------------
-      - name: Show Access Info
-        run: |
-          echo "========================================"
-          echo "Tailscale IP: ${{ steps.tsip.outputs.ip }}"
-          echo ""
-          echo "Next.js:"
-          echo "http://${{ steps.tsip.outputs.ip }}:3000"
-          echo ""
-          echo "Ollama API:"
-          echo "http://${{ steps.tsip.outputs.ip }}:11434"
-          echo ""
-          echo "Webmin:"
-          echo "https://${{ steps.tsip.outputs.ip }}:10000"
-          echo ""
-          echo "OpenClaw: Running via PM2"
-          echo "Telegram Bot: Connected"
-          echo "Model: qwen2.5-coder:7b"
-          echo "========================================"
 
       # ---------------------------
       # Keep Runner Alive
