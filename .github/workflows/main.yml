@@ -31,12 +31,13 @@ jobs:
             lsb-release software-properties-common apt-transport-https jq
 
       # ---------------------------
-      # Install Docker
+      # Install Docker (Correct Way)
       # ---------------------------
       - name: Install Docker
         run: |
-          sudo apt install -y docker.io
+          curl -fsSL https://get.docker.com | sudo sh
           sudo systemctl start docker
+          sudo usermod -aG docker $USER
           docker --version
 
       # ---------------------------
