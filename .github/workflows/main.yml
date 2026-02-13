@@ -1,4 +1,4 @@
-name: Ollama + OpenClaw + Webmin + Tailscale
+name: Ollama + Web Stack via Tailscale
 
 on:
   workflow_dispatch:
@@ -9,7 +9,6 @@ jobs:
     timeout-minutes: 360
 
     steps:
-
       # ---------------------------
       # System Info
       # ---------------------------
@@ -28,24 +27,35 @@ jobs:
       - name: Install Base Packages
         run: |
           sudo apt update
-          sudo apt install -y curl wget git jq docker.io
+          sudo apt install -y curl wget git gnupg2 ca-certificates \
+            lsb-release software-properties-common apt-transport-https
 
       # ---------------------------
-      # Install Node.js 22 (OpenClaw needs 22)
+      # Install Node.js 20
       # ---------------------------
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Verify Node
-        run: node -v
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt install -y nodejs
+          node -v
+          npm -v
 
       # ---------------------------
       # Install PM2
       # ---------------------------
       - name: Install PM2
-        run: npm install -g pm2
+        run: |
+          sudo npm install -g pm2
+          pm2 -v
+
+      # ---------------------------
+      # Install Nginx
+      # ---------------------------
+      - name: Install Nginx
+        run: |
+          sudo apt install -y nginx
+          sudo nginx
+          curl -I http://localhost
 
       # ---------------------------
       # Install Tailscale
@@ -64,99 +74,77 @@ jobs:
         run: |
           IP=$(tailscale ip -4)
           echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "Tailscale IP: $IP"
 
       # ---------------------------
-      # Install Webmin
+      # Install Webmin (Direct .deb)
       # ---------------------------
       - name: Install Webmin
         run: |
           sudo apt install -y perl libnet-ssleay-perl openssl \
             libauthen-pam-perl libpam-runtime libio-pty-perl \
             apt-show-versions python3
+
           wget https://www.webmin.com/download/deb/webmin-current.deb
           sudo dpkg -i webmin-current.deb || sudo apt -f install -y
+
+          # Start Webmin manually
           sudo /etc/webmin/start
 
-      # ---------------------------
-      # Create Docker Network
-      # ---------------------------
-      - name: Create Docker Network
-        run: docker network create ai-net || true
+          # Create Webmin admin user
+          sudo /usr/share/webmin/changepass.pl /etc/webmin \
+            ${{ secrets.WEBMIN_USER }} \
+            ${{ secrets.WEBMIN_PASS }}
+
+          echo "Webmin user created"
 
       # ---------------------------
-      # Start Ollama (Inside Network)
+      # Start Ollama Container
       # ---------------------------
       - name: Start Ollama
         run: |
           docker run -d \
             --name ollama \
-            --network ai-net \
+            -p 11434:11434 \
+            -e OLLAMA_NUM_PARALLEL=2 \
+            -e OLLAMA_KEEP_ALIVE=10m \
+            --restart unless-stopped \
             ollama/ollama:latest
 
       - name: Wait for Ollama
         run: |
           for i in {1..40}; do
-            if docker exec ollama curl -s http://localhost:11434/api/tags > /dev/null; then
+            if curl -s http://localhost:11434/api/tags > /dev/null; then
               echo "Ollama ready"
               break
             fi
             sleep 3
           done
 
-      - name: Pull Model
+      - name: Pull qwen2.5-coder:7b
         run: docker exec ollama ollama pull qwen2.5-coder:7b
 
       # ---------------------------
-      # Install OpenClaw (Node Version - Reliable)
-      # ---------------------------
-      - name: Install OpenClaw
-        run: |
-          git clone https://github.com/openclaw/openclaw.git
-          cd openclaw
-          npm install -g pnpm
-          pnpm install
-
-      # ---------------------------
-      # Configure OpenClaw
-      # ---------------------------
-      - name: Configure OpenClaw
-        run: |
-          cd openclaw
-          echo "MODEL_PROVIDER=ollama" > .env
-          echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
-          echo "OLLAMA_MODEL=qwen2.5-coder:7b" >> .env
-
-      # ---------------------------
-      # Start OpenClaw Gateway
-      # ---------------------------
-      - name: Start OpenClaw
-        run: |
-          cd openclaw
-          nohup pnpm exec openclaw gateway --bind 0.0.0.0 --port 18789 > openclaw.log 2>&1 &
-          sleep 8
-
-      - name: Wait for OpenClaw
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost:18789 > /dev/null; then
-              echo "OpenClaw ready"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "OpenClaw failed"
-          exit 1
-
-      # ---------------------------
-      # Deploy Next.js
+      # Clone Your Next.js Repo
       # ---------------------------
       - name: Deploy Next.js App
         run: |
+          sudo mkdir -p /var/www
+          sudo chown $USER:$USER /var/www
+          cd /var/www
           git clone https://github.com/madmadhu-1002/ollama-gpt.git
           cd ollama-gpt
           npm install
           npm run build
+
+      # ---------------------------
+      # Start Next.js with PM2
+      # ---------------------------
+      - name: Start Next.js App
+        run: |
+          cd /var/www/ollama-gpt
           pm2 start npm --name ollama-gpt -- start
+          pm2 status
 
       # ---------------------------
       # Show Access Info
@@ -172,11 +160,10 @@ jobs:
           echo "Ollama API:"
           echo "http://${{ steps.tsip.outputs.ip }}:11434"
           echo ""
-          echo "OpenClaw Control UI:"
-          echo "http://${{ steps.tsip.outputs.ip }}:18789"
-          echo ""
           echo "Webmin:"
           echo "https://${{ steps.tsip.outputs.ip }}:10000"
+          echo ""
+          echo "Model: qwen2.5-coder:7b"
           echo "========================================"
 
       # ---------------------------
