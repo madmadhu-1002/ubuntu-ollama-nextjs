@@ -1,57 +1,24 @@
-name: Ollama + Web Stack via Tailscale
+name: OpenClaw Telegram Bot
 
 on:
   workflow_dispatch:
 
 jobs:
-  server:
+  openclaw:
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
       # ---------------------------
-      # System Info
-      # ---------------------------
-      - name: Show System Info
-        run: |
-          echo "CPU:"
-          lscpu | grep "Model name"
-          echo "RAM:"
-          free -h
-          echo "Disk:"
-          df -h
-
-      # ---------------------------
-      # Install Base Packages
-      # ---------------------------
-      - name: Install Base Packages
-        run: |
-          sudo apt update
-          sudo apt install -y curl wget git gnupg2 ca-certificates \
-            lsb-release software-properties-common apt-transport-https jq
-
-      # ---------------------------
-      # Install Docker (Correct Way)
-      # ---------------------------
-      - name: Install Docker
-        run: |
-          curl -fsSL https://get.docker.com | sudo sh
-          sudo systemctl start docker
-          sudo usermod -aG docker $USER
-          docker --version
-
-      # ---------------------------
-      # Setup Node.js 22
+      # Setup Node 22
       # ---------------------------
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Verify Node Version
-        run: |
-          which node
-          node -v
+      - name: Verify Node
+        run: node -v
 
       # ---------------------------
       # Install pnpm
@@ -62,160 +29,44 @@ jobs:
           pnpm -v
 
       # ---------------------------
-      # Install PM2
-      # ---------------------------
-      - name: Install PM2
-        run: |
-          npm install -g pm2
-          pm2 -v
-
-      # ---------------------------
-      # Install Nginx
-      # ---------------------------
-      - name: Install Nginx
-        run: |
-          sudo apt install -y nginx
-          sudo nginx
-
-      # ---------------------------
-      # Install Tailscale
-      # ---------------------------
-      - name: Install Tailscale
-        run: curl -fsSL https://tailscale.com/install.sh | sh
-
-      - name: Start Tailscale
-        run: |
-          sudo tailscale up \
-            --authkey=${{ secrets.TAILSCALE_AUTHKEY }} \
-            --accept-dns=true
-
-      - name: Get Tailscale IP
-        id: tsip
-        run: |
-          IP=$(tailscale ip -4)
-          echo "ip=$IP" >> $GITHUB_OUTPUT
-
-      # ---------------------------
-      # Install Webmin
-      # ---------------------------
-      - name: Install Webmin
-        run: |
-          sudo apt install -y perl libnet-ssleay-perl openssl \
-            libauthen-pam-perl libpam-runtime libio-pty-perl \
-            apt-show-versions python3
-          wget https://www.webmin.com/download/deb/webmin-current.deb
-          sudo dpkg -i webmin-current.deb || sudo apt -f install -y
-          sudo /etc/webmin/start
-          sudo /usr/share/webmin/changepass.pl /etc/webmin \
-            ${{ secrets.WEBMIN_USER }} \
-            ${{ secrets.WEBMIN_PASS }}
-
-      # ---------------------------
-      # Start Ollama
-      # ---------------------------
-      - name: Start Ollama
-        run: |
-          docker run -d \
-            --name ollama \
-            -p 11434:11434 \
-            --restart unless-stopped \
-            ollama/ollama:latest
-
-      - name: Wait for Ollama
-        run: |
-          for i in {1..40}; do
-            if curl -s http://localhost:11434/api/tags > /dev/null; then
-              echo "Ollama ready"
-              break
-            fi
-            sleep 3
-          done
-
-      - name: Pull Model
-        run: docker exec ollama ollama pull qwen2.5-coder:7b
-
-      # ---------------------------
       # Install OpenClaw
       # ---------------------------
       - name: Install OpenClaw
         run: |
-          cd /opt
-          sudo git clone https://github.com/openclaw/openclaw.git
-          sudo chown -R $USER:$USER openclaw
+          git clone https://github.com/openclaw/openclaw.git
           cd openclaw
           pnpm install
 
       # ---------------------------
-      # Configure OpenClaw
+      # Configure Telegram
       # ---------------------------
       - name: Configure OpenClaw
         run: |
-          cd /opt/openclaw
-          echo "MODEL_PROVIDER=ollama" > .env
-          echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
-          echo "OLLAMA_MODEL=qwen2.5-coder:7b" >> .env
-          echo "" >> .env
-          echo "CHANNELS=telegram" >> .env
+          cd openclaw
+          echo "CHANNELS=telegram" > .env
           echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
-          echo "ALLOW_SHELL=true" >> .env
+          echo "ALLOW_SHELL=false" >> .env
 
       # ---------------------------
       # Start OpenClaw
       # ---------------------------
       - name: Start OpenClaw
         run: |
-          cd /opt/openclaw
-          pm2 start pnpm --name openclaw -- start
-          pm2 save
-          sleep 5
-          pm2 status
+          cd openclaw
+          pnpm start &
+          sleep 10
 
       # ---------------------------
-      # Send Telegram Greeting (Stable)
+      # Send Test Message
       # ---------------------------
-      - name: Send Telegram Greeting
+      - name: Send Telegram Test
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="hy"
-
-      # ---------------------------
-      # Deploy Next.js
-      # ---------------------------
-      - name: Deploy Next.js
-        run: |
-          sudo mkdir -p /var/www
-          sudo chown $USER:$USER /var/www
-          cd /var/www
-          git clone https://github.com/madmadhu-1002/ollama-gpt.git
-          cd ollama-gpt
-          npm install
-          npm run build
-          pm2 start npm --name ollama-gpt -- start
-
-      # ---------------------------
-      # Show Running Services
-      # ---------------------------
-      - name: Show Service Links
-        run: |
-          echo "================================="
-          echo "Tailscale IP: ${{ steps.tsip.outputs.ip }}"
-          echo ""
-          echo "Next.js:"
-          echo "http://${{ steps.tsip.outputs.ip }}:3000"
-          echo ""
-          echo "Ollama API:"
-          echo "http://${{ steps.tsip.outputs.ip }}:11434"
-          echo ""
-          echo "Webmin:"
-          echo "https://${{ steps.tsip.outputs.ip }}:10000"
-          echo ""
-          echo "OpenClaw running via PM2"
-          echo "Telegram Bot connected"
-          echo "================================="
+            -d text="OpenClaw is running ✅"
 
       # ---------------------------
       # Keep Runner Alive
       # ---------------------------
-      - name: Keep Runner Alive
+      - name: Keep Alive
         run: sleep 6h
