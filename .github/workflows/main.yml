@@ -31,6 +31,15 @@ jobs:
             lsb-release software-properties-common apt-transport-https jq
 
       # ---------------------------
+      # Install Docker
+      # ---------------------------
+      - name: Install Docker
+        run: |
+          sudo apt install -y docker.io
+          sudo systemctl start docker
+          docker --version
+
+      # ---------------------------
       # Setup Node.js 22
       # ---------------------------
       - name: Setup Node.js 22
@@ -41,12 +50,7 @@ jobs:
       - name: Verify Node Version
         run: |
           which node
-          NODE_VERSION=$(node -v)
-          echo "Node version: $NODE_VERSION"
-          if ! echo "$NODE_VERSION" | grep -q "^v22\."; then
-            echo "ERROR: Node 22 is not active."
-            exit 1
-          fi
+          node -v
 
       # ---------------------------
       # Install pnpm
@@ -63,8 +67,6 @@ jobs:
         run: |
           npm install -g pm2
           pm2 -v
-
-      
 
       # ---------------------------
       # Install Nginx
@@ -122,6 +124,7 @@ jobs:
         run: |
           for i in {1..40}; do
             if curl -s http://localhost:11434/api/tags > /dev/null; then
+              echo "Ollama ready"
               break
             fi
             sleep 3
@@ -164,23 +167,16 @@ jobs:
           pm2 start pnpm --name openclaw -- start
           pm2 save
           sleep 5
+          pm2 status
 
       # ---------------------------
-      # Send Telegram "hy"
+      # Send Telegram Greeting (Stable)
       # ---------------------------
       - name: Send Telegram Greeting
         run: |
-          sleep 10
-          RESPONSE=$(curl -s https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getUpdates)
-          CHAT_ID=$(echo $RESPONSE | jq -r '.result[-1].message.chat.id')
-
-          if [ "$CHAT_ID" != "null" ] && [ -n "$CHAT_ID" ]; then
-            curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-              -d chat_id=$CHAT_ID \
-              -d text="hy"
-          else
-            echo "No chat_id found. Press Start in Telegram first."
-          fi
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="hy"
 
       # ---------------------------
       # Deploy Next.js
