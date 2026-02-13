@@ -124,6 +124,16 @@ jobs:
       - name: Pull qwen2.5-coder:7b
         run: docker exec ollama ollama pull qwen2.5-coder:7b
 
+      - name: Start XFCE VNC Desktop
+        run: |
+          docker run -d \
+            --name xfce-vnc \
+            -p 5901:5901 \
+            -e USER=ubuntu \
+            -e PASSWORD=${{ secrets.VNC_PASSWORD }} \
+            --restart unless-stopped \
+            accetto/ubuntu-vnc-xfce
+
       # ---------------------------
       # Clone Your Next.js Repo
       # ---------------------------
