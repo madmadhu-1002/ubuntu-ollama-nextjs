@@ -125,6 +125,30 @@ jobs:
         run: docker exec ollama ollama pull qwen2.5-coder:7b
 
       # ---------------------------
+      # Start OpenClaw Container
+      # ---------------------------
+      - name: Start OpenClaw
+        run: |
+          docker run -d \
+            --name openclaw \
+            -p 18789:18789 \
+            --restart unless-stopped \
+            -e MODEL_PROVIDER=ollama \
+            -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+            -e OLLAMA_MODEL=qwen2.5-coder:7b \
+            ghcr.io/openclaw/openclaw:latest
+
+      - name: Wait for OpenClaw
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:18789 > /dev/null; then
+              echo "OpenClaw ready"
+              break
+            fi
+            sleep 3
+          done
+
+      # ---------------------------
       # Clone Your Next.js Repo
       # ---------------------------
       - name: Deploy Next.js App
