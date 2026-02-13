@@ -183,7 +183,7 @@ jobs:
           echo ""
           echo "OpenClaw Control UI:"
           echo "http://${{ steps.tsip.outputs.ip }}:18789"
-          echo "================================="
+          echo "=================================="
 
       # ---------------------------
       # Keep Runner Alive
