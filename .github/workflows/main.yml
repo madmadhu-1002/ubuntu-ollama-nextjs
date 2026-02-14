@@ -6,7 +6,7 @@ on:
 jobs:
   server:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 620
 
     steps:
       # ---------------------------
@@ -117,17 +117,7 @@ jobs:
       - name: Pull qwen2.5-coder:7b
         run: ollama pull qwen2.5-coder:7b
 
-      # ---------------------------
-      # Install XFCE VNC Desktop (Native)
-      # ---------------------------
-      - name: Start XFCE VNC Desktop
-        run: |
-          sudo apt install -y xfce4 xfce4-goodies tigervnc-standalone-server
-          echo "startxfce4 &" > ~/.xstartup
-          chmod +x ~/.xstartup
-
-          printf "${{ secrets.VNC_PASSWORD }}\n${{ secrets.VNC_PASSWORD }}\nn\n" | vncpasswd
-          vncserver :1
+      
 
       # ---------------------------
       # Clone Your Next.js Repo
