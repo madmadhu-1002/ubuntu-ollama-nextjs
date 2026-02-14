@@ -54,7 +54,7 @@ jobs:
       - name: Install Nginx
         run: |
           sudo apt install -y nginx
-          sudo nginx
+          sudo systemctl start nginx || true
           curl -I http://localhost
 
       # ---------------------------
@@ -87,11 +87,8 @@ jobs:
 
           wget https://www.webmin.com/download/deb/webmin-current.deb
           sudo dpkg -i webmin-current.deb || sudo apt -f install -y
-
-          # Start Webmin manually
           sudo /etc/webmin/start
 
-          # Create Webmin admin user
           sudo /usr/share/webmin/changepass.pl /etc/webmin \
             ${{ secrets.WEBMIN_USER }} \
             ${{ secrets.WEBMIN_PASS }}
@@ -99,17 +96,13 @@ jobs:
           echo "Webmin user created"
 
       # ---------------------------
-      # Start Ollama Container
+      # Install Ollama (Native)
       # ---------------------------
-      - name: Start Ollama
+      - name: Install Ollama
         run: |
-          docker run -d \
-            --name ollama \
-            -p 11434:11434 \
-            -e OLLAMA_NUM_PARALLEL=2 \
-            -e OLLAMA_KEEP_ALIVE=10m \
-            --restart unless-stopped \
-            ollama/ollama:latest
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
 
       - name: Wait for Ollama
         run: |
@@ -122,17 +115,19 @@ jobs:
           done
 
       - name: Pull qwen2.5-coder:7b
-        run: docker exec ollama ollama pull qwen2.5-coder:7b
+        run: ollama pull qwen2.5-coder:7b
 
+      # ---------------------------
+      # Install XFCE VNC Desktop (Native)
+      # ---------------------------
       - name: Start XFCE VNC Desktop
         run: |
-          docker run -d \
-            --name xfce-vnc \
-            -p 5901:5901 \
-            -e USER=ubuntu \
-            -e PASSWORD=${{ secrets.VNC_PASSWORD }} \
-            --restart unless-stopped \
-            accetto/ubuntu-vnc-xfce
+          sudo apt install -y xfce4 xfce4-goodies tigervnc-standalone-server
+          echo "startxfce4 &" > ~/.xstartup
+          chmod +x ~/.xstartup
+
+          printf "${{ secrets.VNC_PASSWORD }}\n${{ secrets.VNC_PASSWORD }}\nn\n" | vncpasswd
+          vncserver :1
 
       # ---------------------------
       # Clone Your Next.js Repo
