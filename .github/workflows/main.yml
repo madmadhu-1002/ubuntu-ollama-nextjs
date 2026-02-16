@@ -114,66 +114,9 @@ jobs:
             sleep 3
           done
 
-      - name: Pull qwen2.5-coder:7b
-        run: ollama pull qwen2.5-coder:7b
+      - name: Pull gpt-oss:20b
+        run: ollama pull gpt-oss:20b
 
-      # ---------------------------
-      # Install OpenClaw
-      # ---------------------------
-      - name: Install OpenClaw
-        run: |
-          curl -fsSL https://openclaw.ai/install.sh | sh
-          sleep 5
-
-      # ---------------------------
-      # Configure OpenClaw (Models + Agents 32K)
-      # ---------------------------
-      - name: Configure OpenClaw
-        run: |
-          sudo apt install -y jq
-          CONFIG="/root/.openclaw/openclaw.json"
-
-          jq '.models = {
-                "providers": {
-                  "ollama": {
-                    "baseUrl": "http://localhost:11434/v1",
-                    "apiKey": "ollama",
-                    "api": "openai-completions",
-                    "models": [
-                      {
-                        "id": "qwen2.5:7b",
-                        "name": "Qwen 2.5 7B",
-                        "contextWindow": 32768,
-                        "maxTokens": 32768,
-                        "cost": {
-                          "input": 0,
-                          "output": 0,
-                          "cacheRead": 0,
-                          "cacheWrite": 0
-                        }
-                      }
-                    ]
-                  }
-                }
-              } |
-              .agents = {
-                "defaults": {
-                  "model": {
-                    "primary": "ollama/qwen2.5:7b"
-                  },
-                  "workspace": "/root/.openclaw/workspace",
-                  "compaction": {
-                    "mode": "safeguard"
-                  },
-                  "maxConcurrent": 1,
-                  "subagents": {
-                    "maxConcurrent": 2
-                  }
-                }
-              }' \
-              $CONFIG > tmp.json && mv tmp.json $CONFIG
-
-          echo "OpenClaw configured with 32K tokens"
 
       
 
