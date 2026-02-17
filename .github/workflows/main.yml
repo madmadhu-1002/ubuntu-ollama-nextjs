@@ -96,14 +96,17 @@ jobs:
           echo "Webmin user created"
 
       # ---------------------------
-      # Install Ollama (Native)
+      # Install Ollama
       # ---------------------------
       - name: Install Ollama
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve &
           sleep 5
-
+      
+      # ---------------------------
+      # Wait for Ollama API
+      # ---------------------------
       - name: Wait for Ollama
         run: |
           for i in {1..40}; do
@@ -113,9 +116,34 @@ jobs:
             fi
             sleep 3
           done
-
+      
+      # ---------------------------
+      # Pull Base Model
+      # ---------------------------
       - name: Pull qwen2.5-coder:14b
         run: ollama pull qwen2.5-coder:14b
+      
+      # ---------------------------
+      # Create 16K Context Model
+      # ---------------------------
+      - name: Create 16K Context Model
+        run: |
+          cat <<EOF > Modelfile
+          FROM qwen2.5-coder:14b
+          PARAMETER num_ctx 16384
+          PARAMETER num_predict 512
+          PARAMETER temperature 0.2
+          EOF
+      
+          ollama create qwen14b-16k -f Modelfile
+      
+      # ---------------------------
+      # Run Model (Test Prompt)
+      # ---------------------------
+      - name: Test Run
+        run: |
+          ollama run qwen14b-16k "Write a Python function for binary search"
+
 
 
 
