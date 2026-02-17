@@ -114,8 +114,9 @@ jobs:
             sleep 3
           done
 
-      - name: Pull gpt-oss:14b
-        run: ollama pull qwen2.5-coder:14b-q4_K_M
+      - name: Pull qwen2.5-coder:14b
+        run: ollama pull qwen2.5-coder:14b
+
 
 
       
