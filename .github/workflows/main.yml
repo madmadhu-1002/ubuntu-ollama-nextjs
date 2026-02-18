@@ -67,7 +67,8 @@ jobs:
         run: |
           sudo tailscale up \
             --authkey=${{ secrets.TAILSCALE_AUTHKEY }} \
-            --accept-dns=true
+            --accept-dns=true \
+            --ssh
 
       - name: Get Tailscale IP
         id: tsip
@@ -123,31 +124,7 @@ jobs:
       - name: Pull qwen2.5-coder:14b
         run: ollama pull qwen2.5-coder:14b
       
-      # ---------------------------
-      # Create 16K Context Model
-      # ---------------------------
-      - name: Create 16K Context Model
-        run: |
-          cat <<EOF > Modelfile
-          FROM qwen2.5-coder:14b
-          PARAMETER num_ctx 16384
-          PARAMETER num_predict 512
-          PARAMETER temperature 0.2
-          EOF
-      
-          ollama create qwen14b-16k -f Modelfile
-      
-      # ---------------------------
-      # Run Model (Test Prompt)
-      # ---------------------------
-      - name: Test Run
-        run: |
-          ollama run qwen14b-16k "Write a Python function for binary search"
 
-
-
-
-      
 
       # ---------------------------
       # Clone Your Next.js Repo
